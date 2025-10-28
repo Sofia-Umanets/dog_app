@@ -1,0 +1,54 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}Редактировать питомца{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pets.css' %}">
+{% endblock %}
+
+{% block content %}
+<h1>Редактировать данные питомца</h1>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="card">
+        <label>Имя:</label>
+        <input type="text" name="name" value="{{ pet.name }}" required>
+
+        <label>Дата рождения:</label>
+        <input type="date" 
+        name="birthday" 
+        value="{{ pet.birthday|date:'Y-m-d' }}" 
+        required 
+        max="{% now 'Y-m-d' %}"
+        oninvalid="this.setCustomValidity('Дата рождения не может быть в будущем')"
+        oninput="this.setCustomValidity('')">
+
+        <label>Вес (в кг):</label>
+        <input type="number" name="weight" step="0.1" value="{{ pet.weight }}">
+
+        <label>Порода:</label>
+        <input type="text" name="breed" value="{{ pet.breed }}">
+
+        <label>Пол:</label><br>
+        <select name="gender">
+            <option value="" {% if not pet.gender %}selected{% endif %}>Выберите пол</option>
+            <option value="M" {% if pet.gender == 'M' %}selected{% endif %}>Мальчик</option>
+            <option value="F" {% if pet.gender == 'F' %}selected{% endif %}>Девочка</option>
+        </select><br><br>
+
+        <label>Особенности:</label><br>
+    <textarea name="features" placeholder="Укажите аллергии, хронические заболевания и другие особенности питомца" 
+    rows="4" style="width: 100%; word-wrap: break-word; white-space: pre-wrap;">{{ pet.features|default_if_none:"" }}</textarea><br><br>
+        <label>Фото:</label>
+        {% if pet.photo %}
+            <img src="{{ pet.photo.url }}" alt="Фото питомца" class="pet-photo-preview">
+        {% endif %}
+        <input type="file" name="photo">
+
+        
+        <button type="submit" class="btn">Сохранить</button>
+    </div>
+</form>
+{% endblock %}

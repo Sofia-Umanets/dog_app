@@ -1,0 +1,46 @@
+{% extends "_base.html" %}
+{% load static %}
+
+{% block title %}Все уроки дрессировки{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/training.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Все доступные уроки</h1>
+
+    {% if lessons %}
+        <div class="lessons-container">
+            {% for lesson in lessons %}
+                <div class="lesson-card">
+                    <a href="{% url 'training:lesson_detail' lesson.id %}" class="lesson-link">
+                        <div class="lesson-image">
+                            {% if lesson.cover_image %}
+                                <img src="{{ lesson.cover_image.url }}" alt="{{ lesson.title }}" class="lesson-cover" loading="lazy">
+                            {% else %}
+                                <img src="{% static 'images/default_cover.jpg' %}" alt="Default Cover" class="lesson-cover" loading="lazy">
+                            {% endif %}
+                        </div>
+                        <div class="lesson-info">
+                            <h2>{{ lesson.title }}</h2>
+                            <p>{{ lesson.description|truncatechars:120 }}</p>
+                            {# Отображение средней оценки из аннотации #}
+                            {% if lesson.avg_rating is not None and lesson.avg_rating > 0 %}
+                                <p class="lesson-rating">Средняя оценка: <strong>{{ lesson.avg_rating|floatformat:1 }}</strong></p>
+                            {% else %}
+                                <p class="lesson-rating">Пока нет оценок</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-lessons">
+            <p>Уроков пока нет.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,627 @@
+пришли полный исправленный 
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Профиль{% endblock %}</title>
+        
+        <!-- Запрет горизонтальной прокрутки и стили для уведомлений -->
+        <style>
+            html, body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            /* Убедитесь, что все контейнеры не выходят за рамки */
+            .app-layout, 
+            .app-content,
+            .tab-content,
+            .pet-card,
+            .card,
+            form,
+            .modal-content {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* Изображения не должны выходить за пределы контейнера */
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+
+            /* Обработка длинного текста */
+            * {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            /* СТИЛИ ДЛЯ ВЫПАДАЮЩЕГО МЕНЮ УВЕДОМЛЕНИЙ - С ВЫСОКИМ ПРИОРИТЕТОМ */
+            .app-notification-wrapper {
+                position: relative !important;
+            }
+            
+            .app-notification-icon {
+                cursor: pointer !important;
+            }
+            
+            .app-notification-dropdown {
+                position: absolute !important;
+                background: white !important;
+                border: none !important;
+                width: 260px !important;
+                max-height: 400px !important;
+                overflow-y: auto !important;
+                z-index: 9999 !important; /* Очень высокий z-index */
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+                border-radius: 8px !important;
+                top: 45px !important;
+                right: 0 !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                transition: opacity 0.3s ease, visibility 0.3s ease !important;
+            }
+            
+            .app-notification-dropdown.show {
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            /* Треугольник над выпадающим меню */
+            .app-notification-dropdown:before {
+                content: '' !important;
+                position: absolute !important;
+                top: -8px !important;
+                right: 18px !important;
+                width: 0 !important;
+                height: 0 !important;
+                border-left: 8px solid transparent !important;
+                border-right: 8px solid transparent !important;
+                border-bottom: 8px solid white !important;
+            }
+            
+            .app-notif-item {
+                padding: 12px 15px !important;
+                border-bottom: 1px solid #eee !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                background-color: white !important;
+            }
+            
+            .app-notif-message {
+                color: #333 !important;
+            }
+            
+            /* Фиксация выпадающего меню на мобильных устройствах */
+            @media (max-width: 768px) {
+                .app-notification-dropdown {
+                    right: 0 !important;
+                    left: auto !important;
+                    width: 260px !important;
+                    max-width: 85vw !important;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+        {% block extra_css %}{% endblock %}
+    </head>
+<body>
+    <div class="app-layout">
+        <nav id="mainSidebar" class="app-sidebar">
+            <!-- Логотип с изображением -->
+            <div class="app-logo">
+                <img src="{% static 'img/logopet.jpeg' %}" alt="PetHub Logo" class="app-logo-img">
+                <span>PetHub</span>
+            </div>
+            
+            <!-- На мобильной версии справа будут кнопки -->
+            <div class="app-actions-group">
+                {% if user.is_authenticated %}
+                <div class="app-notification-wrapper">
+                    <div class="app-notification-icon" id="notificationButton">
+                        🔔
+                        {% if notification_count > 0 %}
+                            <span class="app-notif-badge">{{ notification_count }}</span>
+                        {% endif %}
+                    </div>
+            
+                    <div class="app-notification-dropdown" id="notifDropdown">
+                        {% for note in notifications %}
+                            {% if not note.is_read %}
+                                <div class="app-notif-item" data-id="{{ note.id }}">
+                                    <span class="app-notif-message">{{ note.message }}</span>
+                                    <form method="post" action="{% url 'mark_notification_read' note.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" title="Прочитано" class="app-notif-btn">✓</button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        {% empty %}
+                            <div class="app-notif-item app-notif-empty">Нет новых уведомлений</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Кнопка-гамбургер для мобильного меню -->
+                <button class="app-mobile-toggle" onclick="toggleMobileMenu()">☰</button>
+            </div>
+            
+            <ul class="app-nav">
+                <li class="app-nav-item"><a href="{% url 'dashboard' %}" class="app-nav-link">Главная</a></li>
+                <li class="app-nav-item"><a href="{% url 'profile' %}" class="app-nav-link">Профиль</a></li>
+                <li class="app-nav-item"><a href="{% url 'pets:list' %}" class="app-nav-link">Мои питомцы</a></li>
+                <li class="app-nav-item"><a href="{% url 'training:lesson_list' %}" class="app-nav-link">Дрессировка</a></li>
+                <li class="app-nav-item"><a href="{% url 'articles:list' %}" class="app-nav-link">Статьи</a></li>
+                <li class="app-nav-item"><a href="{% url 'account_logout' %}" class="app-nav-link">Выйти</a></li>
+            </ul>
+        </nav>
+        <main class="app-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Кнопка уведомлений
+            const notificationButton = document.getElementById("notificationButton");
+            const notificationDropdown = document.getElementById("notifDropdown");
+            
+            if (notificationButton && notificationDropdown) {
+                notificationButton.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    notificationDropdown.classList.toggle("show");
+                });
+                
+                // Закрытие при клике вне меню
+                document.addEventListener("click", function(e) {
+                    if (!e.target.closest(".app-notification-wrapper")) {
+                        notificationDropdown.classList.remove("show");
+                    }
+                });
+            }
+            
+            // Мобильное меню
+            document.querySelectorAll(".app-nav-link").forEach(link => {
+                link.addEventListener("click", () => {
+                    if (window.innerWidth <= 768) {
+                        document.getElementById("mainSidebar").classList.remove("expanded");
+                    }
+                });
+            });
+            
+            window.addEventListener("resize", () => {
+                if (window.innerWidth > 768) {
+                    document.getElementById("mainSidebar").classList.remove("expanded");
+                }
+            });
+        });
+        
+        // Функция для мобильного меню
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById("mainSidebar");
+            sidebar.classList.toggle("expanded");
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
+
+
+теперь надо и при создании 2 копий через питон автоматически завязывать их в серию с перым ежегодным 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from .models import Event, ReminderSettings, EVENT_TYPES
+from pets.models import Pet
+from datetime import datetime
+from django.utils import timezone
+from django.contrib import messages # Импортируем messages для вывода сообщений пользователю
+
+
+import logging
+
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s %(levelname)s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    filename='error.log',
+    filemode='a'
+)
+
+logger = logging.getLogger(__name__)
+
+WEEKDAY_CHOICES = [
+    ("0", "Пн"),
+    ("1", "Вт"),
+    ("2", "Ср"),
+    ("3", "Чт"),
+    ("4", "Пт"),
+    ("5", "Сб"),
+    ("6", "Вс"),
+]
+
+@login_required
+def add_event(request, pet_id):
+    pet = get_object_or_404(Pet, id=pet_id)
+
+    if request.user not in pet.owners.all():
+        return redirect('pets:list')
+
+    error = None
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        event_type = request.POST.get('event_type')
+        date = request.POST.get('date')
+        time = request.POST.get('time') or None
+        duration = request.POST.get('duration') or None
+        note = request.POST.get('note', '')
+        is_yearly = request.POST.get('is_yearly') == 'on'
+
+        event_date = datetime.strptime(date, '%Y-%m-%d').date()
+        if is_yearly and event_date.month == 2 and event_date.day == 29:
+            error = "Ежегодное событие на 29 февраля невозможно, так как не каждый год является високосным."
+            return render(request, 'calendarapp/add_event.html', {
+                'pet': pet,
+                'error': error,
+                'initial': initial if request.method == 'POST' else {},
+                'event_type_choices': EVENT_TYPES,
+            })
+
+        # Проверка на дублирование
+        if Event.objects.filter(pet=pet, title=title, date=date).exists():
+            error = "Событие с таким названием и датой уже существует."
+        else:
+            # Создание события
+            current_year = datetime.now().year
+            event_date = datetime.strptime(date, '%Y-%m-%d').date()
+
+            if is_yearly:
+                for year in [current_year, current_year + 1, current_year + 2]:
+                    new_date = event_date.replace(year=year)
+                    Event.objects.create(
+                        pet=pet,
+                        title=title,
+                        event_type=event_type,
+                        date=new_date,
+                        time=time,
+                        duration_minutes=duration if duration else None,
+                        note=note,
+                        is_yearly=True,
+                        is_done=False
+                    )
+            else:
+                Event.objects.create(
+                    pet=pet,
+                    title=title,
+                    event_type=event_type,
+                    date=event_date,
+                    time=time,
+                    duration_minutes=duration if duration else None,
+                    note=note,
+                    is_yearly=is_yearly,
+                    is_done=False
+                )
+
+            remind_at = request.POST.get('remind_at') or None
+            repeat = request.POST.get('repeat') == 'on'
+
+            if remind_at:
+                for event in Event.objects.filter(pet=pet, title=title, event_type=event_type):
+                    rs, _ = ReminderSettings.objects.get_or_create(event=event, defaults={'pet': pet})
+                    rs.remind_at = remind_at
+                    rs.repeat = repeat
+                    if repeat:
+                        rs.repeat_days = request.POST.getlist('repeat_days')
+                        rs.repeat_every = int(request.POST.get('repeat_every') or 1)
+                        rs.remind_date = None
+                    else:
+                        rs.repeat_days = []
+                        rs.remind_date = request.POST.get('remind_date') or None
+                        rs.repeat_every = 1
+                    rs.save()
+
+            return redirect(f'/pets/{pet_id}/?tab=calendar#{date}')
+
+        # Если ошибка - форма перерисуется со старыми данными
+
+    # Для заполнения полей формы если была ошибка
+    initial = {}
+    if request.method == 'POST':
+        for field in ['title', 'event_type', 'date', 'time', 'duration', 'note', 'is_yearly',
+                      'remind_at', 'repeat', 'repeat_days', 'repeat_every', 'remind_date']:
+            initial[field] = request.POST.get(field, '')
+
+    return render(request, 'calendarapp/add_event.html', {
+        'pet': pet,
+        'error': error,
+        'initial': initial if request.method == 'POST' else {},
+        'event_type_choices': EVENT_TYPES,
+    })
+
+from django.db import transaction
+
+
+@login_required
+def edit_event(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    if request.user not in event.pet.owners.all():
+        return redirect('pets:list')
+
+    error = None
+    pet_id = event.pet.id
+    event_type_choices = EVENT_TYPES
+    weekday_choices = WEEKDAY_CHOICES
+    reminder = getattr(event, 'reminder', None)
+    is_birthday = event.event_type == 'birthday'
+
+    # --- Формирование form_data и repeat_days_selected ---
+    if request.method == 'POST':
+        if is_birthday:
+            # Для дня рождения обрабатываем только разрешенные поля
+            time = request.POST.get('time') or None
+            duration = request.POST.get('duration') or None
+            note = request.POST.get('note', '')
+            apply_to_all = request.POST.get('apply_to_all') == 'on'
+            reminder_repeat = request.POST.get('repeat') == 'on'
+            reminder_repeat_days = request.POST.getlist('repeat_days')
+            reminder_repeat_every = request.POST.get('repeat_every') or 1
+            remind_at = request.POST.get('remind_at') or None
+            remind_date = request.POST.get('remind_date') or None
+
+            if apply_to_all:
+                # Обновляем все события дня рождения
+                with transaction.atomic():
+                    birthday_events = Event.objects.filter(
+                        pet=event.pet,
+                        event_type='birthday',
+                        is_yearly=True
+                    )
+                    for ev in birthday_events:
+                        ev.time = time
+                        ev.duration_minutes = duration if duration else None
+                        ev.note = note
+                        ev.save()
+
+                        # Обновляем настройки напоминаний
+                        rs, _ = ReminderSettings.objects.get_or_create(event=ev, defaults={'pet': event.pet})
+                        rs.repeat = reminder_repeat
+                        rs.repeat_days = reminder_repeat_days
+                        rs.repeat_every = int(reminder_repeat_every)
+                        rs.remind_at = remind_at
+                        rs.remind_date = remind_date if not reminder_repeat else None
+                        rs.save()
+            else:
+                # Обновляем только текущее событие
+                event.time = time
+                event.duration_minutes = duration if duration else None
+                event.note = note
+                event.save()
+
+                # Обновляем настройки напоминаний
+                rs, _ = ReminderSettings.objects.get_or_create(event=event, defaults={'pet': event.pet})
+                rs.repeat = reminder_repeat
+                rs.repeat_days = reminder_repeat_days
+                rs.repeat_every = int(reminder_repeat_every)
+                rs.remind_at = remind_at
+                rs.remind_date = remind_date if not reminder_repeat else None
+                rs.save()
+
+            return redirect(f'/pets/{pet_id}/?tab=calendar#{event.date}')
+        else:
+            # Существующий код для обычных событий...
+            title = request.POST.get('title', '').strip()
+            event_type = request.POST.get('event_type')
+            date_str = request.POST.get('date')
+            time = request.POST.get('time') or None
+            duration = request.POST.get('duration') or None
+            note = request.POST.get('note', '')
+            is_yearly = request.POST.get('is_yearly') == 'on'
+            apply_to_all = request.POST.get('apply_to_all') == 'on'
+            reminder_repeat = request.POST.get('repeat') == 'on'
+            reminder_repeat_days = request.POST.getlist('repeat_days')
+            reminder_repeat_every = request.POST.get('repeat_every') or 1
+            remind_at = request.POST.get('remind_at') or None
+            remind_date = request.POST.get('remind_date') or None
+
+            try:
+                date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else event.date
+                
+                if is_yearly and date.month == 2 and date.day == 29:
+                    error = "Ежегодное событие на 29 февраля невозможно, так как не каждый год является високосным."
+                elif apply_to_all and event.is_yearly:
+                    with transaction.atomic():
+                        all_events = list(Event.objects.filter(
+                            pet=event.pet,
+                            event_type=event.event_type,
+                            is_yearly=True,
+                        ).order_by('date'))
+
+                        used_dates = set()
+                        for ev in all_events:
+                            new_date = date.replace(year=ev.date.year)
+                            new_title = title
+                            conflict = Event.objects.filter(
+                                pet=event.pet,
+                                title=new_title,
+                                date=new_date
+                            ).exclude(id=ev.id).exists()
+                            if conflict or (new_title, new_date) in used_dates:
+                                continue
+                            used_dates.add((new_title, new_date))
+
+                            ev.title = new_title
+                            ev.event_type = event_type
+                            ev.date = new_date
+                            ev.time = time
+                            ev.duration_minutes = duration if duration else None
+                            ev.note = note
+                            ev.is_yearly = is_yearly
+                            ev.save()
+                            
+                            rs, _ = ReminderSettings.objects.get_or_create(event=ev, defaults={'pet': event.pet})
+                            rs.repeat = reminder_repeat
+                            rs.repeat_days = reminder_repeat_days
+                            rs.repeat_every = int(reminder_repeat_every)
+                            rs.remind_at = remind_at
+                            rs.remind_date = remind_date if not reminder_repeat else None
+                            rs.save()
+                    return redirect(f'/pets/{pet_id}/?tab=calendar#{date}')
+                else:
+                    conflict = Event.objects.filter(
+                        pet=event.pet,
+                        title=title,
+                        date=date
+                    ).exclude(id=event.id).exists()
+                    if conflict:
+                        error = 'Событие с такой датой и названием уже существует.'
+                    else:
+                        event.title = title
+                        event.event_type = event_type
+                        event.date = date
+                        event.time = time
+                        event.duration_minutes = duration if duration else None
+                        event.note = note
+                        event.is_yearly = is_yearly
+                        event.save()
+                        
+                        rs, _ = ReminderSettings.objects.get_or_create(event=event, defaults={'pet': event.pet})
+                        rs.repeat = reminder_repeat
+                        rs.repeat_days = reminder_repeat_days
+                        rs.repeat_every = int(reminder_repeat_every)
+                        rs.remind_at = remind_at
+                        rs.remind_date = remind_date if not reminder_repeat else None
+                        rs.save()
+                        return redirect(f'/pets/{pet_id}/?tab=calendar#{date}')
+            except ValueError:
+                error = "Некорректная дата."
+
+
+    # Формирование начальных данных формы
+    form_data = {
+        'title': event.title or '',
+        'event_type': event.event_type or '',
+        'date': event.date.strftime('%Y-%m-%d') if event.date else '',
+        'time': event.time.strftime('%H:%M') if event.time else '',
+        'duration': event.duration_minutes if event.duration_minutes else '',
+        'note': event.note or '',
+        'is_yearly': 'on' if event.is_yearly else '',
+        'apply_to_all': '',
+        'repeat': 'on' if reminder and reminder.repeat else '',
+        'repeat_every': reminder.repeat_every if reminder and reminder.repeat_every else 1,
+        'remind_at': reminder.remind_at.strftime('%H:%M') if reminder and reminder.remind_at else '',
+        'remind_date': reminder.remind_date.strftime('%Y-%m-%d') if reminder and reminder.remind_date else '',
+    }
+
+    repeat_days_selected = (
+        [str(x) for x in reminder.repeat_days] 
+        if reminder and getattr(reminder, 'repeat_days', None) 
+        else []
+    )
+
+    return render(request, 'calendarapp/edit_event.html', {
+        'event': event,
+        'event_type_choices': event_type_choices,
+        'weekday_choices': weekday_choices,
+        'form_data': form_data,
+        'repeat_days_selected': repeat_days_selected,
+        'reminder': reminder,
+        'error': error,
+        'is_birthday': is_birthday
+    })
+
+def create_next_year_event():
+    current_year = datetime.now().year
+    next_year = current_year + 1
+
+    # Находим события, которые имеют статус is_yearly=True
+    last_events = Event.objects.filter(
+        is_yearly=True
+    )
+
+    for last_event in last_events:
+        # Проверяем, если год события равен прошлому году или ранее
+        if last_event.date.year == current_year - 1:
+            # Создаем копию события на следующие годы
+            new_date = last_event.date.replace(year=next_year + 1)
+            Event.objects.get_or_create(
+                pet=last_event.pet,
+                title=last_event.title,
+                date=new_date,
+                defaults={
+                    'event_type': last_event.event_type,
+                    'time': last_event.time,
+                    'duration_minutes': last_event.duration_minutes,
+                    'note': last_event.note,
+                    'is_yearly': True,
+                    'is_done': False
+                }
+            )
+
+
+@login_required
+def mark_done(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    current_year = timezone.now().year
+
+    # Отмечаем текущее событие как выполненное
+    event.is_done = True
+    event.done_year = current_year
+    event.save()
+
+    return redirect(f'/pets/{event.pet.id}/?tab=calendar#{event.date}')
+
+    
+    в этой функции надо запретить удалять отдельно 1-ое событие только если зразу всю серию и вывести пользователю при попытке удалить сообщение 
+@login_required
+def delete_event(request, event_id):
+    try:
+        event = Event.objects.get(id=event_id)
+        
+        if request.user not in event.pet.owners.all():
+            logger.warning(f"User {request.user} is not authorized to delete event {event_id}.")
+            return redirect('pets:list')
+
+        pet_id = event.pet.id
+        
+
+
+        if request.method == 'POST':
+            delete_all = request.POST.get('delete_all') == 'on'
+
+            if delete_all:
+                # Удалить все события с этим названием
+                Event.objects.filter(pet=event.pet, title=event.title, is_yearly=True).delete()
+                logger.info(f"Deleted all events with title {event.title} for pet {event.pet.name}")
+            else:
+                # Удалить только текущее событие
+                event.delete()
+                logger.info(f"Deleted event {event_id} for pet {event.pet.name}")
+
+            return redirect(f'/pets/{pet_id}/?tab=calendar#{event.date}')
+
+        return render(request, 'calendarapp/delete_event.html', {'event': event})
+
+    except Event.DoesNotExist:
+        logger.error(f"Event with id {event_id} does not exist.")
+        return redirect('pets:list')
+    except Exception as e:
+        logger.error(f"Error deleting event {event_id}: {e}")
+        return redirect(f'/pets/{pet_id}/?tab=calendar')

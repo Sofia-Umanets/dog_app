@@ -1,0 +1,255 @@
+всё равно нет посмотри внимательнее на начальную и напиши без комментариев
+проблема в том что дата и время напоминания не отобрааются в шаблоне почему 
+@login_required
+def edit_event(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+
+    if request.user not in event.pet.owners.all():
+        return redirect('pets:list')
+
+    error = None
+    pet_id = event.pet.id
+    
+    try:
+        reminder = event.reminder
+        has_reminder = True
+    except ReminderSettings.DoesNotExist:
+        reminder = None
+        has_reminder = False
+
+    # Initialize all relevant variables up front
+    is_birthday = event.event_type == 'birthday'
+    
+    # Initialize fields with current event data
+    initial_date = event.date.strftime('%Y-%m-%d') if event.date else ''
+    initial_time = event.time.strftime('%H:%M') if event.time else ''
+    
+    # Initialize reminder-related fields
+    remind_at_str = ''
+    remind_date_str = ''
+    repeat_days_selected = []
+    repeat_every = 1
+    repeat = False
+    
+    # If we have a reminder, get its settings
+    if has_reminder and reminder:
+        repeat_days = getattr(reminder, 'repeat_days', [])
+        repeat_days_selected = [str(day) for day in repeat_days]
+        repeat_every = getattr(reminder, 'repeat_every', 1)
+        repeat = getattr(reminder, 'repeat', False)
+        
+        # Safely format time and date strings
+        if getattr(reminder, 'remind_at', None):
+            remind_at_str = reminder.remind_at.strftime('%H:%M')
+        else:
+            remind_at_str = ''
+            
+        if getattr(reminder, 'remind_date', None) and not repeat:
+            remind_date_str = reminder.remind_date.strftime('%Y-%m-%d')
+        else:
+            remind_date_str = ''
+    else:
+        # Default values when no reminder exists
+        repeat_days_selected = []
+        repeat_every = 1
+        repeat = False
+        remind_at_str = ''
+        remind_date_str = ''
+
+    if request.method == 'POST':
+        if is_birthday:
+            time = request.POST.get('time') or None
+            duration = request.POST.get('duration') or None
+            note = request.POST.get('note', '')
+            apply_to_all = request.POST.get('apply_to_all') == 'on'
+            reminder_repeat = request.POST.get('repeat') == 'on'
+            repeat_days = request.POST.getlist('repeat_days')
+            repeat_every = int(request.POST.get('repeat_every') or 1)
+            remind_at = safe_time_parse(request.POST.get('remind_at'))
+            remind_date = safe_date_parse(request.POST.get('remind_date'))
+
+            if apply_to_all:
+                # Обновляем все события дня рождения
+                with transaction.atomic():
+                    birthday_events = Event.objects.select_for_update().filter(
+                        pet=event.pet, event_type='birthday', is_yearly=True
+                    )
+
+                    for ev in birthday_events:
+                        ev.time = time
+                        ev.duration_minutes = duration
+                        ev.note = note
+                        ev.save()
+
+                        # Обновляем или создаём напоминание
+                        rs, created = ReminderSettings.objects.get_or_create(event=ev, defaults={'pet': event.pet})
+                        rs.repeat = reminder_repeat
+                        rs.repeat_days = repeat_days
+                        rs.repeat_every = repeat_every
+                        rs.remind_at = remind_at
+                        rs.remind_date = remind_date if not reminder_repeat else None
+                        rs.save()
+
+                    messages.success(request, 'Все события дня рождения обновлены.')
+
+            else:
+                # Обновляем только текущее событие
+                event.time = request.POST.get('time') or None
+                event.duration_minutes = request.POST.get('duration') or None
+                event.note = request.POST.get('note', '')
+                event.save()
+
+                # Обновляем или создаём напоминание
+                rs, created = ReminderSettings.objects.get_or_create(event=event, defaults={'pet': event.pet})
+                rs.repeat = request.POST.get('repeat') == 'on'
+                rs.repeat_days = request.POST.getlist('repeat_days')
+                rs.repeat_every = int(request.POST.get('repeat_every') or 1)
+                rs.remind_at = safe_time_parse(request.POST.get('remind_at'))
+                rs.remind_date = safe_date_parse(request.POST.get('remind_date')) if not rs.repeat else None
+                rs.save()
+
+                messages.success(request, 'День рождения обновлен')
+
+            return redirect(f'/pets/{pet_id}/?tab=calendar#{event.date}')
+
+        else:
+            title = request.POST.get('title', '').strip()
+            event_type = request.POST.get('event_type')
+            date_str = request.POST.get('date')
+            time = request.POST.get('time') or None
+            duration = request.POST.get('duration') or None
+            note = request.POST.get('note', '')
+            is_yearly = request.POST.get('is_yearly') == 'on'
+            apply_to_all = request.POST.get('apply_to_all') == 'on'
+            reminder_repeat = request.POST.get('repeat') == 'on'
+            repeat_days = request.POST.getlist('repeat_days')
+            repeat_every = int(request.POST.get('repeat_every') or 1)
+            remind_at = safe_time_parse(request.POST.get('remind_at'))
+            remind_date = safe_date_parse(request.POST.get('remind_date'))
+
+            try:
+                # Парсинг даты из формы
+                user_supplied_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else event.date
+            except ValueError:
+                error = "Неверный формат даты"
+                messages.error(request, error)
+                return redirect('pets:detail', pet_id=pet_id)
+
+            if is_yearly and user_supplied_date.month == 2 and user_supplied_date.day == 29:
+                error = "29 февраля не может быть установлено для ежегодного события"
+                messages.warning(request, error)
+                return redirect(f'/pets/{pet_id}/?tab=calendar#{event.date}')
+
+            # Получаем события для обновления
+            # Получаем события для обновления
+            if apply_to_all:
+                if event.original_event:
+                    # Если это не оригинал серии, получаем оригинал и все связанные события
+                    main_event = event.original_event
+                    events_in_series = list(main_event.recurring_events.all()) + [main_event]
+                else:
+                    # Если это оригинал серии, получаем его и все связанные события
+                    events_in_series = list(event.recurring_events.all()) + [event]
+            else:
+                # Если не применять ко всем, обновляем только текущее событие
+                events_in_series = [event]
+
+            events_to_update = []
+            reminders_to_update = []
+            used_pairs = set()
+            events_to_update = []
+            reminders_to_update = []
+
+            with transaction.atomic():
+                for ev in events_in_series:
+                    new_date = date(ev.date.year, user_supplied_date.month, user_supplied_date.day)
+
+                    # Проверка дублирования
+                    if Event.objects.filter(
+                        pet=event.pet,
+                        title=title,
+                        date=new_date
+                    ).exclude(id=ev.id).exists():
+                        messages.warning(request, f'Дубликат: "{title}" на {new_date}')
+                        continue
+
+                    if (title, new_date) in used_pairs:
+                        messages.warning(request, f'Дубликат: "{title}" → {new_date}')
+                        continue
+
+                    used_pairs.add((title, new_date))
+
+                    # Обновляем само событие
+                    ev.title = title
+                    ev.event_type = event_type
+                    ev.date = new_date
+                    ev.time = time
+                    ev.duration_minutes = duration
+                    ev.note = note
+                    ev.is_yearly = is_yearly
+                    events_to_update.append(ev)
+
+                    # Обновляем напоминание
+                    rs, created = ReminderSettings.objects.get_or_create(event=ev, defaults={'pet': event.pet})
+                    rs.repeat = reminder_repeat
+                    rs.repeat_days = repeat_days
+                    rs.repeat_every = repeat_every
+                    rs.remind_at = remind_at
+                    rs.remind_date = remind_date if not reminder_repeat else None
+                    reminders_to_update.append(rs)
+            
+
+            
+
+                # Выполняем массовое обновление
+                if events_to_update:
+                    Event.objects.bulk_update(
+                        events_to_update,
+                        fields=[
+                            'title', 'event_type', 'date', 'time', 
+                            'duration_minutes', 'note', 'is_yearly'
+                        ]
+                    )
+                if reminders_to_update:
+                    ReminderSettings.objects.bulk_update(
+                        reminders_to_update,
+                        fields=[
+                            'repeat', 'repeat_days', 'repeat_every',
+                            'remind_at', 'remind_date'
+                        ]
+                    )
+
+                messages.success(
+                    request,
+                    "Серия событий обновлена." if apply_to_all else "Событие обновлено."
+                )
+
+            return redirect(f'/pets/{pet_id}/?tab=calendar#{event.date}')
+
+    # Подготовка данных для формы
+    
+    # Подготовка данных формы
+    form_data = {
+        'title': event.title or '',
+        'event_type': event.event_type or '',
+        'date': initial_date,
+        'time': initial_time,
+        'duration': str(event.duration_minutes) if event.duration_minutes else '',
+        'note': event.note or '',
+        'is_yearly': 'on' if event.is_yearly else '',
+        'apply_to_all': 'on' if request.POST.get('apply_to_all') else '',
+        'remind_at': remind_at_str,
+        'remind_date': remind_date_str,
+        'repeat': 'on' if repeat else '',
+        'repeat_every': str(repeat_every),
+    }
+
+    return render(request, 'calendarapp/edit_event.html', {
+        'event': event,
+        'form_data': form_data,
+        'repeat_days_selected': repeat_days_selected,
+        'error': error,
+        'is_birthday': is_birthday,
+        'event_type_choices': EVENT_TYPES,
+        'reminder': reminder,
+    })

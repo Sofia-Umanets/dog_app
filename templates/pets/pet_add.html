@@ -1,0 +1,47 @@
+{% extends '_base.html' %}
+{% load static %}
+{% block title %}Добавить питомца{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pets.css' %}">
+{% endblock %}
+
+{% block content %}
+<h1>Добавить питомца</h1>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="card">
+        <label>Имя:</label><br>
+        <input type="text" name="name" required><br><br>
+
+        <label>Дата рождения:</label><br>
+        <input type="date" name="birthday" required max="{% now 'Y-m-d' %}" 
+        oninvalid="this.setCustomValidity('Дата рождения не может быть в будущем')"
+        oninput="this.setCustomValidity('')"><br><br>
+
+        <label>Вес (в кг):</label><br>
+        <input type="number" name="weight" step="0.1"><br><br>
+
+        <label>Порода:</label><br>
+        <input type="text" name="breed"><br><br>
+
+        <label>Пол:</label><br>
+        <select name="gender">
+            <option value="" selected>Выберите пол</option>
+            <option value="M">Мальчик</option>
+            <option value="F">Девочка</option>
+        </select><br><br>
+
+        <label>Особенности:</label><br>
+        <textarea name="features" placeholder="Укажите аллергии, хронические заболевания и другие особенности питомца" rows="4" style="width: 100%;"></textarea><br><br>
+
+
+        <label>Фото (необязательно):</label><br>
+        <input type="file" name="photo"><br><br>
+
+        
+        <button type="submit" class="btn">Сохранить</button>
+    </div>
+</form>
+{% endblock %}

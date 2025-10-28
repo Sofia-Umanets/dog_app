@@ -1,0 +1,72 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-wrapper">
+    <div class="profile-content">
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="profile-top">
+                    <div class="profile-user-info">
+                        <div class="profile-user-avatar">
+                            <img src="{{ user.get_avatar }}" alt="{{ user.username }}" 
+                                onerror="this.onerror=null; this.src='{% static 'img/image.webp' %}'">
+                        </div>
+                        <div class="profile-user-text">
+                            <h1>Привет, {{ user.username }}</h1>
+                            <a href="{% url 'edit_profile' %}" class="profile-user-edit-btn">
+                                <i class="fas fa-edit"></i> Редактировать профиль
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-section pets-section">
+            <h2>Твои питомцы</h2>
+            <ul class="pets-list">
+                {% for pet in pets %}
+                    <li class="pet-list-item">
+                        <span class="pet-name">{{ pet.name }}</span>
+                        <div class="pet-actions">
+                            <a href="{% url 'pets:detail' pet.id %}" class="profile-link">Открыть</a>
+                            <a href="{% url 'invite_owner' pet.id %}" class="profile-link">Пригласить владельца</a>
+                        </div>
+                    </li>
+                {% empty %}
+                    <li class="empty-list-item">Питомцев пока нет</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="profile-section articles-section">
+            <h2>Сохранённые статьи</h2>
+            <div class="saved-articles-list">
+                {% for item in saved_articles %}
+                    <div class="article-card">
+                        {% if item.article.image %}
+                            <div class="article-image">
+                                <img src="{{ item.article.image.url }}" alt="{{ item.article.title }}">
+                            </div>
+                        {% endif %}
+                        <div class="article-content">
+                            <h3><a href="{% url 'articles:detail' item.article.id %}">{{ item.article.title }}</a></h3>
+                            <p class="article-excerpt">{{ item.article.content|truncatewords:15 }}</p>
+                            <p class="article-date">Добавлено: {{ item.article.created_at|date:"d.m.Y" }}</p>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="empty-state">Ты пока ничего не сохранил</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

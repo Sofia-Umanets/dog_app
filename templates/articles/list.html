@@ -1,0 +1,35 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}Список статей{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/articles.css' %}">
+{% endblock %}
+
+{% block content %}
+<h1>Статьи</h1>
+
+<div class="article-list">
+  {% for article in articles %}
+    <div class="article-card">
+      {% if article.image %}
+        <div class="article-image">
+          <img src="{{ article.image }}" alt="{{ article.title }}" loading="lazy">  {# Используйте article.image, так как в view это уже URL #}
+        </div>
+      {% endif %}
+      <div class="article-content">
+        <h2><a href="{% url 'articles:detail' article.id %}">{{ article.title }}</a></h2>
+        <div class="article-excerpt">
+          {{ article.truncated_content }}
+        </div>
+        <p class="article-date">Добавлено: {{ article.created_at|date:"d.m.Y H:i" }}</p>
+        <p class="saved-count">Сохранено ❤️‍🔥 {{ article.saved_count }}</p>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty-state">Пока нет статей.</p>
+  {% endfor %}
+</div>
+
+{% endblock %}

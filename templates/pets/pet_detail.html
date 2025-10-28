@@ -1,0 +1,387 @@
+{% extends '_base.html' %}
+{% load static %}
+{% block title %}{{ pet.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pets.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="pet-card">
+    <h1>{{ pet.name }}</h1>
+    
+    <div class="pet-info">
+        <p><strong>Возраст:</strong> {{ pet.age }}</p>
+        {% if pet.breed %}
+            <p><strong>Порода:</strong> {{ pet.breed }}</p>
+        {% endif %}
+
+        {% if pet.gender %}
+            <p><strong>Пол:</strong> {{ pet.get_gender_display }}</p>
+        {% endif %}
+
+        {% if pet.weight %}
+            <p><strong>Вес:</strong> {{ pet.weight }} кг</p>
+        {% endif %}
+        
+        {% if pet.features %}
+            <details>
+                <summary><strong>Особенности</strong> (нажмите, чтобы развернуть)</summary>
+                <div class="pet-features">
+                    <div class="features-content">{{ pet.features }}</div>
+                </div>
+            </details>
+        {% endif %}
+    </div>
+
+    {% if pet.photo %}
+        <img src="{{ pet.photo.url }}" alt="{{ pet.name }}" class="pet-photo">
+    {% else %}
+        <img src="{% static 'img/pet_placeholder.jpg' %}" alt="Питомец" class="pet-photo">
+    {% endif %}
+</div>
+
+<div class="tabs">
+    <a href="?tab=info" class="{% if tab == 'info' %}active{% endif %}">Инфо</a>
+    <a href="?tab=training" class="{% if tab == 'training' %}active{% endif %}">Дрессировка</a>
+    <a href="?tab=calendar" class="{% if tab == 'calendar' %}active{% endif %}">Календарь</a>
+</div>
+
+<div class="tab-content">
+    {% if tab == 'info' %}
+        <p><strong>День рождения:</strong> {{ pet.birthday|date:"d.m.Y" }}</p>
+        {% if birthday_today %}
+            <p><strong>🎉 Сегодня день рождения у {{ pet.name }}!</strong></p>
+        {% elif birthday_soon %}
+            <p><strong>⏳ Через {{ birthday_soon }} дней у {{ pet.name }} День Рождения!</strong></p>
+        {% endif %}
+
+        <p><strong>Владельцы:</strong></p>
+        <ul>
+            {% for owner in pet.owners.all %}
+                <li>{{ owner.email }}</li>
+            {% endfor %}
+        </ul>
+        <p><a href="{% url 'pets:edit' pet.id %}" class="btn">Редактировать</a></p>
+
+    {% elif tab == 'training' %}
+        <div class="tabs mini-tabs">
+            <a href="?tab=training&filter=in_progress" class="{% if filter == 'in_progress' %}active{% endif %}">В процессе</a>
+            <a href="?tab=training&filter=completed" class="{% if filter == 'completed' %}active{% endif %}">Завершены</a>
+        </div>
+        
+        {% if lessons %}
+            {% for lesson in lessons %}
+                <div class="card">
+                    <div class="card-title">
+                        <a href="{% url 'training:lesson_detail' lesson.id %}?pet={{ pet.id }}">{{ lesson.title }}</a>
+                    </div>
+                    <p>{{ lesson.description|truncatechars:150 }}</p>
+
+                    {% with lesson_progress=lesson.get_progress_for_pet_id|default_if_none:"" %}
+                    <p>
+                        {% if lesson.id in completed_lessons %}
+                            ✅ Завершено |
+                            <a href="{% url 'training:set_status' pet.id lesson.id 'in_progress' %}">Вернуть в процесс</a>
+                        {% elif lesson.id in in_progress_lessons %}
+                            ⏳ В процессе |
+                            <a href="{% url 'training:set_status' pet.id lesson.id 'completed' %}">Завершить</a>
+                        {% else %}
+                            ❌ Не начат |
+                            <a href="{% url 'training:set_status' pet.id lesson.id 'in_progress' %}">Начать</a>
+                        {% endif %}
+                    </p>
+                    {% endwith %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Уроков пока нет.</p>
+        {% endif %}
+
+        {% elif tab == 'calendar' %}
+
+        <div id="calendar"></div>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <div id="eventModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>События на <span id="eventDate"></span></h2>
+                <div id="eventList"></div>
+            </div>
+        </div>
+
+        <p style="margin-top: 20px;">
+            <a href="{% url 'calendarapp:add' pet.id %}" class="btn">Добавить событие</a>
+        </p>
+
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/index.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ru',
+                height: 'auto',
+                events: [
+                    {% for event in events %}
+                    {
+                        title: '{{ event.title }}{% if event.is_done %} ✅{% endif %}',
+                        start: '{{ event.date|date:"Y-m-d" }}',
+                        end: '{{ event.date|date:"Y-m-d" }}',
+                        className: '{{ event.is_done|yesno:"done,not-done" }}',
+                        backgroundColor: '{{ event.is_done|yesno:"rgb(128, 238, 114),#ffffff" }}',
+                        textColor: '{{ event.is_done|yesno:"#000000,#000000" }}',
+                        borderColor: '{{ event.is_done|yesno:"rgb(100, 200, 100),#ddd" }}',
+                        extendedProps: {
+                            id: '{{ event.id }}',
+                            time: '{{ event.time|default:"" }}',
+                            note: `{{ event.note|default_if_none:"" }}`,
+                            is_done: {{ event.is_done|yesno:"true,false" }},
+                            remind: `{% if event.reminder %}{{ event.reminder.remind_at|time:"H:i" }}{% endif %}`,
+                            is_yearly: {{ event.is_yearly|yesno:"true,false" }},
+                            edit_url: '{% url 'calendarapp:edit' event.id %}',
+                            done_url: '{% url 'calendarapp:done' event.id %}',
+                            delete_url: '{% url 'calendarapp:delete' event.id %}'
+                        }
+                    },
+                    {% endfor %}
+                ],
+                dateClick: function(info) {
+                    const clickedDate = info.dateStr;
+                    document.getElementById('eventDate').innerText = clickedDate;
+
+                    const matched = calendar.getEvents().filter(e => e.startStr === clickedDate);
+                    let html = '';
+
+                    if (matched.length > 0) {
+                        matched.forEach(event => {
+                            const yearlyNote = event.extendedProps.is_yearly ? ' (Ежегодное)' : '';
+                            const statusClass = event.extendedProps.is_done ? 'done' : 'not-done';
+                            html += `
+                                <div class="event-card ${statusClass}">
+                                    <b>${event.title} - ${event.startStr}${yearlyNote}</b><br>
+                                    ${event.extendedProps.time ? `Время: ${event.extendedProps.time}<br>` : ''}
+                                    ${event.extendedProps.note ? `Заметка: ${event.extendedProps.note}<br>` : ''}
+                                    ${event.extendedProps.remind ? `<i>Напомнить: ${event.extendedProps.remind}</i><br>` : ''}
+                                    ${event.extendedProps.is_done ? '✅ Выполнено' : '❌ Не выполнено'}<br>
+                                    <div class="event-actions">
+                                        <a href="${event.extendedProps.edit_url}" class="btn">✏️ Редактировать</a>
+                                        ${!event.extendedProps.is_done ? 
+                                            `<a href="${event.extendedProps.done_url}" class="btn" 
+                                                onclick="return confirm('Отметить событие как выполненное?')">
+                                                ✅ Завершить
+                                            </a>` 
+                                            : ''
+                                        }
+                                        <form action="${event.extendedProps.delete_url}" method="post" onsubmit="return confirm('Удалить событие?')">
+                                            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn">🗑 Удалить</button>
+                                            <label for="id_delete_all">
+                                                <input type="checkbox" id="id_delete_all" name="delete_all">
+                                                Удалить все события с этим названием
+                                            </label>
+                                        </form>
+                                    </div>
+                                </div><br>`;
+                        });
+                    } else {
+                        html = '<p>Нет событий</p>';
+                    }
+
+                    document.getElementById('eventList').innerHTML = html;
+                    document.getElementById('eventModal').style.display = 'block';
+                }
+            });
+
+            calendar.render();
+
+            // Обработка якоря в URL
+            if (window.location.hash) {
+                const dateStr = window.location.hash.slice(1);
+                try {
+                    const date = new Date(dateStr);
+                    if (!isNaN(date)) {
+                        calendar.gotoDate(date);
+                        
+                        setTimeout(() => {
+                            const calendarTop = calendarEl.getBoundingClientRect().top;
+                            const offset = window.pageYOffset + calendarTop - 100;
+                            window.scrollTo({
+                                top: offset,
+                                behavior: 'smooth'
+                            });
+                        }, 100);
+                    }
+                } catch (e) {
+                    console.error('Invalid date in hash:', e);
+                }
+            }
+        });
+
+        function closeModal() {
+            document.getElementById('eventModal').style.display = 'none';
+        }
+    </script>
+    
+        <style>
+            #calendar {
+                max-width: 900px;
+                margin: 0 auto;
+            }
+    
+            .modal {
+                position: fixed;
+                z-index: 9999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgba(0,0,0,0.4);
+            }
+    
+            .modal-content {
+                background-color: #fff;
+                margin: 10% auto;
+                padding: 20px;
+                border-radius: 8px;
+                width: 80%;
+                max-width: 500px;
+            }
+    
+            .close {
+                float: right;
+                font-size: 28px;
+                cursor: pointer;
+            }
+    
+            .event-card {
+                border: 1px solid #ddd;
+                padding: 10px;
+                margin-bottom: 10px;
+                border-radius: 4px;
+            }
+    
+            .event-card.done {
+                background-color:rgb(130, 255, 157);
+                color: #666;
+            }
+    
+            .event-actions {
+                margin-top: 10px;
+            }
+    
+            .event-actions .btn {
+                margin-right: 5px;
+                margin-bottom: 5px;
+            }
+    
+            .not-done {
+                background-color: #fff;
+            }
+    
+            .done {
+                background-color:rgb(128, 238, 114);
+                color: #666;
+            }
+            @media screen and (max-width: 768px) {
+                /* Общая адаптация календаря */
+                .fc {
+                    font-size: 0.85em;
+                }
+                
+                /* Уменьшение шрифта для заголовков дней недели */
+                .fc-col-header-cell {
+                    font-size: 0.9em;
+                }
+                
+                /* Уменьшение высоты ячеек календаря */
+                .fc-daygrid-day {
+                    min-height: 2.5em;
+                }
+                
+                /* Уменьшение отступов внутри ячеек */
+                .fc-daygrid-day-frame {
+                    padding: 2px;
+                }
+                
+                /* Уменьшение шрифта номеров дней */
+                .fc-daygrid-day-number {
+                    font-size: 0.9em;
+                    padding: 2px 4px !important;
+                }
+                
+                /* Уменьшение шрифта названий событий */
+                .fc-event-title {
+                    font-size: 0.85em;
+                }
+                
+                /* Изменение модального окна */
+                .modal-content {
+                    width: 95%;
+                    margin: 5% auto;
+                    padding: 15px;
+                }
+                
+                /* Кнопки в одну колонку в карточке события */
+                .event-actions {
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .event-actions .btn,
+                .event-actions form {
+                    width: 100%;
+                    margin-bottom: 5px;
+                }
+                
+                /* Улучшение чекбокса для удаления всех событий */
+                .event-actions form label {
+                    display: flex;
+                    align-items: center;
+                    margin-top: 5px;
+                }
+                
+                .event-actions form input[type="checkbox"] {
+                    margin-right: 5px;
+                }
+            }
+            
+            /* Для совсем маленьких экранов */
+            @media screen and (max-width: 480px) {
+                /* Скрываем кнопки меню календаря */
+                .fc-toolbar-chunk:not(:first-child) {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }
+                
+                /* Уменьшаем высоту шапки календаря */
+                .fc-toolbar {
+                    flex-wrap: wrap;
+                    gap: 5px;
+                }
+                
+                /* Заголовок календаря по центру */
+                .fc-toolbar-title {
+                    font-size: 1.1em !important;
+                    text-align: center;
+                    width: 100%;
+                }
+                
+                /* Кнопки прокрутки месяцев */
+                .fc-button {
+                    padding: 0.2em 0.5em !important;
+                    font-size: 0.9em !important;
+                }
+            }
+        </style>
+    {% endif %}
+
+
+</div>
+{% endblock %}

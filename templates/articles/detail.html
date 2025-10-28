@@ -1,0 +1,45 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/articles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="article-detail">
+    <h1>{{ article.title }}</h1>
+
+    {% if article.image %}
+        <div class="article-detail-image">
+            <img src="{{ article.image.url }}" alt="{{ article.title }}" loading="lazy">
+        </div>
+    {% endif %}
+
+    <div class="article-content">
+        <div class="lead">{{ processed_content|safe }}</div>
+    </div>
+
+    <div class="article-meta-block">
+        <p class="saved-count">Сохранено ❤️‍🔥 {{ article.saved_by_count }}</p>
+
+        {% if user.is_authenticated %}
+            {% if is_saved %}
+                <form action="{% url 'articles:unsave' article.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">Убрать из сохранённых</button>
+                </form>
+            {% else %}
+                <form action="{% url 'articles:save' article.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">Сохранить статью</button>
+                </form>
+            {% endif %}
+        {% endif %}
+
+        <p class="article-date">Добавлено: {{ article.created_at|date:"d.m.Y  (H:i)" }}</p>
+    </div>
+
+</div>
+{% endblock %}

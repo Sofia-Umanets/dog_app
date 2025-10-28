@@ -1,0 +1,495 @@
+:root {
+    --primary-color: #4f46e5;
+    --background-color: #f9fafb;
+    --card-background: #ffffff;
+    --text-color: #fffbfb;
+    --border-color: #e5e7eb;
+    --hover-color: #f3f4f6;
+    --success-color: #10b981;
+    --muted-text: #6b7280;
+}
+
+/* f20 или f30 */
+body {
+    background-image: url('/static/img/f30.jpg'); 
+    background-size: 90% auto;
+    background-position: 250px -500px; 
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* Затемнение фона */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+}
+
+@media (max-width: 768px) {
+    body {
+        background-image: url('/static/img/f30.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        position: relative;
+        min-height: 100vh;
+        margin: 0;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5); 
+        z-index: -1;
+    }
+}
+
+/* Основные стили */
+h1 {
+    text-align: center;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+/* Список статей */
+.article-list {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+}
+
+/* Карточка статьи */
+.article-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.article-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Контейнер изображения */
+.article-card .article-image {
+    width: 100%;
+    padding-bottom: 56.25%;
+    position: relative;
+}
+
+.article-card .article-image img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* ====== КОНТЕНТ КАРТОЧКИ (по-умолчанию, для детальной статьи) ======= */
+.article-content {
+    padding: 1.25rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #425a5a;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    --muted-text: #fff;
+}
+
+/* белый текст для контента по-умолчанию */
+.article-content,
+.article-content p,
+.article-content h2,
+.article-content h3,
+.article-content h4,
+.article-content ul,
+.article-content li,
+.article-content a,
+.article-content strong,
+.article-content em,
+.article-content span,
+.article-content .lead {
+    color: #fff !important;
+    font-size: 1.18rem !important;
+    line-height: 1.8;
+}
+
+.article-content h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
+    color: #fff !important;
+}
+
+.article-content h2 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+.article-content h2 a:hover {
+    color: var(--primary-color);
+}
+
+/* ссылки */
+.article-content a {
+    color: #fff !important;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+.article-content a:hover {
+    color: #ffda5a !important;
+}
+
+.article-excerpt {
+    color: #fff;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+    font-size: 1.14rem;
+}
+
+.article-date, .rating-count {
+    color: #fff;
+    font-size: 1.03rem;
+}
+
+.article-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #fff;
+    font-size: 0.99rem;
+    margin-top: auto;
+}
+
+/* ==== КОНТЕНТ карточек на странице списка статей: белый фон, черный текст ==== */
+.article-list .article-card {
+    background: #fff !important;
+    color: #222 !important;
+}
+
+.article-list .article-card .article-content {
+    background: #fff !important;
+    color: #222 !important;
+    border-radius: 0 0 12px 12px;
+    box-shadow: none;
+}
+
+.article-list .article-card .article-content h2,
+.article-list .article-card .article-content h2 a,
+.article-list .article-card .article-excerpt,
+.article-list .article-card .article-content p,
+.article-list .article-card .article-content .article-date,
+.article-list .article-card .article-content .saved-count {
+    color: #222 !important;
+}
+
+.article-list .article-card .article-content h2 a:hover {
+    color: var(--primary-color) !important;
+}
+
+/* Детальная страница статьи */
+.article-detail {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    font-size: 1.14rem;
+}
+
+.article-detail h1 {
+    text-align: left;
+    margin-bottom: 1.5rem;
+    color: #fff;
+}
+
+.article-detail-image {
+    width: 100%;
+    padding-bottom: 56.25%;
+    position: relative;
+    margin: 1rem 0 2rem;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.article-detail-image img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Сохранённые статьи в профиле */
+.saved-articles-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.saved-articles-list .article-card {
+    max-width: 100%;
+    margin-bottom: 1rem;
+}
+.saved-articles-list .article-card .article-image {
+    width: 100%;
+    padding-bottom: 56.25%; 
+    position: relative;
+}
+.saved-articles-list .article-card .article-image img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+.saved-articles-list h3 {
+    font-size: 1.2rem;
+    margin: 0 0 1rem;
+    color: #fff;
+}
+.saved-articles-list h3 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+.saved-articles-list h3 a:hover {
+    color: var(--primary-color);
+}
+
+/* Пустое состояние */
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted-text);
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+/* Кнопки */
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    font-size: 1.06rem;
+}
+.btn:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+}
+
+/* Стилизация форматированного текста в детальной статье */
+.article-text a {
+    color: var(--primary);
+    text-decoration: underline;
+}
+.article-text a:hover {
+    color: var(--primary-light, #655af5);
+}
+.article-text ul, .article-text ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+.article-text li {
+    margin-bottom: 0.5rem;
+}
+.article-text strong {
+    font-weight: 700;
+}
+.article-text em {
+    font-style: italic;
+}
+.article-text blockquote {
+    border-left: 4px solid var(--primary-color);
+    padding-left: 1rem;
+    color: var(--muted-text);
+    margin-bottom: 1.5rem;
+}
+
+/* МЕТА-БЛОК */
+.article-meta-block {
+    background-color: #425a5a;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    --muted-text: #fff;
+}
+.article-meta-block,
+.article-meta-block p,
+.article-meta-block .saved-count,
+.article-meta-block .article-date {
+    color: #fff !important;
+    font-size: 1.11rem !important;
+}
+
+.article-meta-block form {
+    margin: 0;
+}
+.article-meta-block p {
+    margin: 0;
+}
+
+/* Адаптивность для мета-блока */
+@media (max-width: 600px) {
+    .article-meta-block {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.article-card, .saved-articles-list .article-card, .article-detail-image, .lesson-image img {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .article-list, .saved-articles-list {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .article-card .article-image, .saved-articles-list .article-card .article-image, .article-detail-image {
+        padding-bottom: 66.67%; /* Соотношение сторон 3:2 для мобильных */
+    }
+
+    .article-content, .saved-articles-list .article-content, .article-detail {
+        padding: 1rem;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .article-content h2, .saved-articles-list h3 {
+        font-size: 1.2rem;
+    }
+
+    .article-excerpt {
+        font-size: 0.9rem;
+    }
+
+    .article-actions {
+        flex-direction: column;
+    }
+}
+
+/* Дополнительные утилиты */
+.text-center {
+    text-align: center;
+}
+
+.mt-1 {
+    margin-top: 0.5rem;
+}
+
+.mt-2 {
+    margin-top: 1rem;
+}
+
+.mb-1 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-2 {
+    margin-bottom: 1rem;
+}
+
+/* Улучшенные стили для пустого состояния */
+.empty-state {
+    background: var(--hover-color);
+    padding: 3rem 2rem;
+    text-align: center;
+    border-radius: 12px;
+    color: var(--muted-text);
+    font-style: italic;
+}
+
+/* Стили для интерактивных элементов */
+.article-card:active {
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* Стили для доступности */
+.article-content a:focus, .btn:focus, .saved-articles-list h3 a:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Стили для печати */
+@media print {
+    .article-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    .btn, .article-actions {
+        display: none;
+    }
+}

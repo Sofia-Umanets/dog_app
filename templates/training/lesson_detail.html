@@ -1,0 +1,183 @@
+{% extends "_base.html" %}
+
+{% load static %}
+
+{% block title %}{{ lesson.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/training.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{{ lesson.title }}</h1>
+
+    <!-- Верхний блок: выбор питомца и состояние урока -->
+    <div class="lesson-detail-container p-4 mb-4">
+        <div class="row align-items-start g-4">
+            <!-- Блок выбора питомца (слева) -->
+            <div class="col-md-6">
+                <div class="pet-selection-container">
+                    <form method="get" class="pet-select-form">
+                        <label for="pet" class="form-label">Выберите питомца:</label>
+                        <select name="pet" id="pet" class="form-select" onchange="this.form.submit()">
+                            <option value="">--- Выберите питомца ---</option>
+                            {% for pet in user_pets %}
+                                <option value="{{ pet.id }}" {% if pet == selected_pet %}selected{% endif %}>{{ pet.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    
+                    <!-- Состояние урока (теперь под выбором питомца) -->
+                    {% if selected_pet %}
+                        <div class="lesson-status-block mt-4 show">
+                            {% if status == "completed" %}
+                                <span class="status-completed">✅ Завершено</span>
+                                <a href="{% url 'training:set_status' selected_pet.id lesson.id 'in_progress' %}" class="status-action-link">Вернуть в процесс</a>
+                            {% elif status == "in_progress" %}
+                                <span class="status-in-progress">⏳ В процессе</span>
+                                <a href="{% url 'training:set_status' selected_pet.id lesson.id 'completed' %}" class="status-action-link">Завершить</a>
+                            {% else %}
+                                <span class="status-not-started">❌ Не начат</span>
+                                <a href="{% url 'training:set_status' selected_pet.id lesson.id 'in_progress' %}" class="status-action-link">Начать</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Блок рейтинга (справа) -->
+            <div class="col-md-6">
+                <div class="lesson-rating-section">
+                    <div class="average-rating-display text-center">
+                        <h2>Средняя оценка</h2>
+                        {% if average_rating %}
+                            <div class="circle-average">
+                                <span class="circle-main">{{ average_rating|floatformat:1 }}</span>
+                                <span class="circle-label">/ 5</span>
+                                <span class="rating-count">({{ ratings_count }} оценок)</span>
+                            </div>
+                        {% else %}
+                            <div class="circle-average">
+                                <span class="circle-main empty">—</span>
+                                <span class="circle-label">/ 5</span>
+                                <span class="rating-count">Нет оценок</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if user.is_authenticated %}
+                    <div class="rate-lesson-form-container text-center">
+                        <h2 class="text-center">{% if user_rating %}Изменить вашу оценку{% else %}Оцените урок{% endif %}</h2>
+                        <form action="{% url 'training:rate_lesson' lesson.id %}" method="post" class="rating-form">
+                            {% csrf_token %}
+                            <!-- Добавляем скрытое поле для ID питомца -->
+                            {% if selected_pet %}
+                                <input type="hidden" name="pet_id" value="{{ selected_pet.id }}">
+                            {% endif %}
+                            <div class="rating-stars d-flex justify-content-center">
+                                {% for i in "12345" %}
+                                    <input type="radio" id="rating{{ i }}" name="rating" value="{{ i }}"
+                                           {% if user_rating and user_rating.rating|stringformat:"s" == i %}checked{% endif %} required>
+                                    <label for="rating{{ i }}">{{ i }}</label>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn submit-rating-btn mx-auto">
+                                {% if user_rating %}Изменить{% else %}Отправить{% endif %}
+                            </button>
+                        </form>
+                        {% if user_rating %}
+                            <p class="your-rating text-center">Ваша оценка: <b>{{ user_rating.rating }}</b></p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                        <p class="login-to-rate text-center"><a href="{% url 'login' %}">Войдите</a>, чтобы оценить урок.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Нижний блок: видео и описание урока -->
+    <div class="lesson-main-content mb-4">
+        {% if lesson.video %}
+            <div class="lesson-video mb-4">
+                <video src="{{ lesson.video.url }}" controls preload="metadata" class="w-100">
+                    Ваш браузер не поддерживает видео.
+                </video>
+            </div>
+        {% else %}
+            <div class="no-video mb-4">
+                <p>Видео отсутствует.</p>
+            </div>
+        {% endif %}
+
+        {% if processed_text %}
+            <div class="lesson-text">
+                <h2>Подробное содержание</h2>
+                <div class="lead">{{ processed_text|safe }}</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Кнопка "Назад" -->
+    <div class="back-button-container text-center my-4">
+        <a href="{% url 'training:lesson_list' %}" class="btn btn-secondary back-link">← Назад ко всем урокам</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Обработчик выбора питомца
+        const petSelect = document.getElementById('pet');
+        const statusBlock = document.querySelector('.lesson-status-block');
+        
+        if (statusBlock && petSelect) {
+            petSelect.addEventListener('change', function() {
+                if (this.value) {
+                    statusBlock.style.transform = 'translateY(-10px)';
+                    statusBlock.style.opacity = '0';
+                    setTimeout(() => {
+                        statusBlock.style.transform = 'translateY(0)';
+                        statusBlock.style.opacity = '1';
+                    }, 150);
+                }
+            });
+        }
+        
+        // Обработчик звезд рейтинга
+        const ratingStars = document.querySelector('.rating-stars');
+        if (ratingStars) {
+            const labels = ratingStars.querySelectorAll('label');
+            labels.forEach(label => {
+                label.addEventListener('click', function() {
+                    labels.forEach(lbl => lbl.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Инициализация активной звезды
+            const checkedRadio = ratingStars.querySelector('input[type="radio"]:checked');
+            if (checkedRadio) {
+                checkedRadio.nextElementSibling.classList.add('active');
+            }
+        }
+        
+        // Обработчик кнопки "Назад"
+        const backLink = document.querySelector('.back-link');
+        if (backLink) {
+            backLink.addEventListener('click', function(e) {
+                this.style.transform = 'translateY(0)';
+                setTimeout(() => {
+                    this.style.transform = 'translateY(-2px)';
+                }, 100);
+            });
+        }
+    });
+</script>
+{% endblock %}
